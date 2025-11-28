@@ -7,7 +7,7 @@ from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from preprocess import pra_pemrosesan
 
 # Repo model Hugging Face
-MODEL_REPO = "RizaldyDeputra/Indobert-TA-5"  # GANTI DENGAN MODEL KAMU DI HF HUB
+MODEL_REPO = "RizaldyDeputra/Indobert-TA-5/IndoBERT_EPOCH5"  
 ID2LABEL = {0: "negatif", 1: "positif"}
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
