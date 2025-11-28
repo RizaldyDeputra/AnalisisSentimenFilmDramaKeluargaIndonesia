@@ -3,26 +3,47 @@ import torch
 import torch.nn.functional as F
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 
-# import preprocessing MU
 from preprocess import pra_pemrosesan
 
-# Repo model Hugging Face
-MODEL_REPO = "RizaldyDeputra/Indobert-TA-5/IndoBERT_EPOCH5"  
+# ===========================
+# KONFIGURASI MODEL HF
+# ===========================
+
+# GANTI dengan repo dan folder kamu sendiri
+HF_REPO_ID = "RizaldyDeputra/Indobert-TA-5"   # contoh: "arancranel/analisis-sentimen-film"
+HF_SUBFOLDER = "IndoBERT_EPOCH5"       # contoh: nama folder di dalam repo HF
+
 ID2LABEL = {0: "negatif", 1: "positif"}
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+# ===========================
+# LOAD MODEL + TOKENIZER
+# ===========================
+
 @st.cache_resource
 def load_model():
-    tokenizer = AutoTokenizer.from_pretrained(MODEL_REPO)
-    model = AutoModelForSequenceClassification.from_pretrained(MODEL_REPO)
+    tokenizer = AutoTokenizer.from_pretrained(
+        HF_REPO_ID,
+        subfolder=HF_SUBFOLDER,
+        use_fast=False,         # aman untuk IndoBERT
+    )
+    model = AutoModelForSequenceClassification.from_pretrained(
+        HF_REPO_ID,
+        subfolder=HF_SUBFOLDER,
+    )
     model.to(device)
     model.eval()
     return tokenizer, model
 
 tokenizer, model = load_model()
 
+# ===========================
+# FUNGSI PREDIKSI
+# ===========================
+
 def prediksi_sentimen(teks_input: str):
+    # konsisten dengan preprocessing saat training
     teks_bersih = pra_pemrosesan(teks_input)
 
     encoding = tokenizer(
@@ -40,25 +61,31 @@ def prediksi_sentimen(teks_input: str):
         probs = F.softmax(out.logits, dim=-1).cpu().numpy()[0]
 
     idx = int(probs.argmax())
-    return ID2LABEL[idx], probs
+    label_pred = ID2LABEL[idx]
+
+    return label_pred, probs
 
 # ===========================
-# STREAMLIT UI
+# UI STREAMLIT
 # ===========================
 
-st.title("Analisis Sentimen Film – IndoBERT Fine-tuned")
+st.title("Analisis Sentimen Film Drama Keluarga – IndoBERT")
 
-st.write("Masukkan kalimat ulasan film, lalu klik **Prediksi**.")
+st.write(
+    "Masukkan kalimat ulasan film (misalnya tentang *1 Kakak 7 Ponakan*, "
+    "*Perayaan Mati Rasa*, dll), lalu klik **Prediksi**."
+)
 
-text = st.text_area("Masukkan teks ulasan:", height=150)
+teks_input = st.text_area("Tulis ulasan di sini:", height=150)
 
 if st.button("Prediksi"):
-    if text.strip() == "":
-        st.warning("Tolong masukkan teks terlebih dahulu.")
+    if not teks_input.strip():
+        st.warning("Tolong isi dulu teks ulasannya 😊")
     else:
-        label, probs = prediksi_sentimen(text)
+        label, probs = prediksi_sentimen(teks_input)
 
         st.subheader("Hasil Prediksi")
-        st.write(f"**Label:** `{label}`")
-        st.write(f"Negatif: `{probs[0]:.4f}`")
-        st.write(f"Positif: `{probs[1]:.4f}`")
+        st.write(f"**Label sentimen:** `{label}`")
+        st.write("**Probabilitas:**")
+        st.write(f"- Negatif: `{probs[0]:.4f}`")
+        st.write(f"- Positif: `{probs[1]:.4f}`")
